@@ -1,0 +1,16 @@
+//<script type="text/jsx">
+//<Route path="/FormRegistre" component={FormRegistre} />
+
+function Routes() {
+    return(
+        <Router>
+            <Header />
+            <Redirect to="/"/>
+            <Switch>
+                <Route exact path="/" component={Inicio} />
+                <Route exact path="/Administrador/" component={Admin} />
+            </Switch>
+        </Router>
+    );
+}
+//</script>

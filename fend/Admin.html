@@ -1,0 +1,416 @@
+//<script type="text/jsx">
+    let creado, user;
+    let hid1 = true;
+    let hid2 = true;
+    var size;
+    const fechaModificado = new Date().toLocaleString() + " ";
+
+   function Admin() {
+        const [dataSource, setdataSource] = useState([])
+        const [dataOtros, setDataOtros] = useState([])
+        const [view, setView] = useState(true)
+        const [viewotr, setViewotr] = useState(true)
+        const [recurso, setRecurso] = useState([])
+        const [dataid, setDataid] = useState({
+              TR: " ",
+              NombreApellido: " ",
+              Numerotelefono: " ",
+              Departamento: " ",
+              TipoSolicitud: " ",
+              TipoServicio: " ",
+              desde: " ",
+              hasta: " ",
+              FechaServicio: " ",
+              Horarequerida: " ",
+        });
+        const [itr, setITR] = useState()
+        const [trview, setTRView] = useState(false)
+        const [trfechaview, setTrfechaview] = useState(false)
+
+        const pageNumber = []
+
+        size = Math.ceil(dataSource.length / 40)
+        if(size > 0) {
+          for(let i = 1; i <= size; i++) { pageNumber.push(i) }
+         }
+
+    useEffect(User, [])
+
+    async function adminvalida() {
+            await google.script.run.withSuccessHandler(res => {
+                user = (res)
+                if(user === creado) { listar(); setView(false); }
+                else setView(true);
+                listarRecurso();
+             }).validarUser(creado);
+    }
+
+    async function revisarOtros() {
+          let fn = 0
+          if(trview) fn = 1;
+          else if(trfechaview) fn = 2;
+          setViewotr(false)
+            await google.script.run.withSuccessHandler(res => {
+                const respuest = JSON.parse(res);
+                let arreglo = [];
+                respuest
+                    .sort((a, b) =>  b.fechaCreado > a.fechaCreado ? 1 : -1)
+                    .map(data => {
+                      if(data.estado != "No Asignado" && data.estado != "En Progreso")
+                          arreglo.push({...data})
+                    })
+                    setDataOtros(arreglo)
+              }).listarRequest(itr, fn);
+              setTRView(false)
+              setTrfechaview(false)
+              setITR(" ")
+    }
+
+    function search(e) {
+          const { name, value } = e.target;
+         if(name === "sidtr") setTRView(true);
+         else if (name === "sfecha") setTrfechaview(true);
+          setITR(value)
+    }
+
+    async function listar() {
+              await google.script.run.withSuccessHandler(res => {
+                  const respuest = JSON.parse(res);
+                  let arreglo = [];
+                  respuest
+                      .sort((a, b) =>  b.fechaCreado > a.fechaCreado ? 1 : -1)
+                      .map(data => {
+                        arreglo.push({...data})
+                      })
+                      setdataSource(arreglo)
+                }).listarEstado("No Asignado");
+    }
+
+    async function User() {
+            await google.script.run.withSuccessHandler(res => {
+                creado = (res)
+                adminvalida()
+            }).perfil();
+    }
+
+    function handCheck(TR, N) {
+          let rfind = {}
+          if(N === 1) { rfind = dataSource.find((dat) => dat.TR === TR)}
+          else if(N === 2) { rfind = dataOtros.find((dat) => dat.TR === TR)}
+             setDataid({
+                  TR : rfind.TR,
+                  creado: rfind.creado,
+                  fechaCreado: rfind.fechaCreado,
+                  NombreApellido: rfind.NombreApellido,
+                  Numerotelefono: rfind.Numerotelefono,
+                  Departamento: rfind.Departamento,
+                  TipoSolicitud: rfind.TipoSolicitud,
+                  TipoServicio: rfind.TipoServicio,
+                  desde: rfind.desde,
+                  hasta: rfind.hasta,
+                  FechaServicio: rfind.FechaServicio,
+                  Horarequerida: rfind.Horarequerida,
+                  estado: rfind.estado,
+                  vehiculo: rfind.vehiculo,
+                  AsignadoPor: rfind.AsignadoPor
+              });listar();
+    }
+
+   const updateData = async () => {
+          notificacionGuardando("Actualizando Registro");
+           await google.script.run.withSuccessHandler(resp => {
+              notificacionTareaTerminada(resp.titulo, resp.descripcion);
+              User()
+             Semail(dataid.TR, creado, dataid.fechaCreado, dataid.NombreApellido, dataid.Departamento, dataid.TipoSolicitud, dataid.TipoServicio, dataid.FechaServicio, dataid.Horarequerida, dataid.estado, dataid.vehiculo)
+          }).updateTicket(dataid.TR, dataid.NombreApellido, dataid.Numerotelefono, dataid.Departamento, dataid.TipoSolicitud, dataid.TipoServicio, dataid.desde, dataid.hasta, dataid.FechaServicio, dataid.Horarequerida, dataid.estado, dataid.vehiculo, creado, fechaModificado )
+    }
+
+    const checkData = (e) => {
+          const { name, value } = e.target;
+          setDataid({...dataid, [name]: value})
+
+          if (e.target.name === 'tipoServicio') {
+              if(e.target.value === 'Propio') hid1 = false; else hid1 = true;
+              if(e.target.value === 'Tercero') hid2 = false; else hid2 = true;
+          }
+
+          if(e.target.name === "vehiculo") {
+              if(value === dataid.vehiculo) dataid.vehiculo = dataid.vehiculo
+              else dataid.vehiculo = value;
+          }
+    }
+
+    const bcolor = (kfalta) => {
+          if(kfalta === "No Asignado") return ('#FFBB5C')
+          else if(kfalta === "En Progreso") return ('#337CCF')
+          else if(kfalta === "Completado") return ('#435334')
+          else if(kfalta === "Cancelado") return ('#FF6969')
+    }
+
+      const listarRecurso = async () => {
+          await google.script.run.withSuccessHandler(res => {
+              const respuest = JSON.parse(res);
+              let arreglo = [];
+              respuest.map(data =>  {
+                  arreglo.push({...data})
+              })
+              setRecurso(arreglo)
+        }).listarRecursos();
+      }
+
+      function Semail(TR, creado, fechaCreado, NombreApellido, Departamento, TipoSolicitud, TipoServicio, FechaServicio, Horarequerida, estado, vehiculo) {
+          google.script.run.withSuccessHandler(resp => {
+           // console.log(resp)
+          }).emailUser(TR, creado, dayjs(fechaCreado).format("DD/MM/YYYY"), NombreApellido, Departamento, TipoSolicitud, TipoServicio, dayjs(FechaServicio).format("DD/MM/YYYY"), dayjs(Horarequerida).format("HH:mm"), estado, vehiculo)
+        }
+
+        return (
+          <div>
+              <div className="container-sm rounded shadow" style={{"marginTop": '2rem'}}>
+              <div>
+                  <h2 className="p-2 bg-primary-subtle bg-opacity-10 border border-warning border-start-0 rounded-end fst-italic">Sistema Solicitud de Transporte: Administrador</h2>
+              </div>
+              <div>
+                      <h1 hidden={!view}>No Posee Acceso</h1>
+                  </div>
+                  <table className="table table-hover" hidden={view}>
+                      <thead className="bg-secondary text-white text-center">
+                      <tr>
+                          <th className="p-2">TR</th>
+                          <th className="p-2">Fecha Creado</th>
+                          <th className="p-2">Fecha Servicio</th>
+                          <th className="p-2">Hora Servicio</th>
+                          <th className="p-2">Departamento</th>
+                          <th className="p-2">Nombre Solicitante</th>
+                          <th className="p-2">Tipo de Solicitud</th>
+                          <th className="p-2">Tipo de Servicio</th>
+                          <th className="p-2">Vehiculo</th>
+                          <th className="p-2">Editar</th>
+                          <th className="p-2">Estado</th>
+                      </tr>
+                      </thead>
+                          <tbody>
+                              {dataSource.map((datos) =>
+                              <tr key={datos.TR}>
+                              <td className="text-center" >{datos.TR}</td>
+                              <td className="text-center">{dayjs(datos.fechaCreado).format("DD/MM/YYYY")}</td>
+                              <td className="text-center">{dayjs(datos.FechaServicio).format("DD/MM/YYYY")}</td>
+                              <td className="text-center">{dayjs(datos.Horarequerida).format("HH:mm")}</td>
+                              <td>{datos.Departamento}</td>
+                              <td>{datos.NombreApellido}</td>
+                              <td>{datos.TipoSolicitud}</td>
+                              <td>{datos.TipoServicio}</td>
+                              <td>{datos.vehiculo}</td>
+                              <td><button className="btn bg-primary text-white" data-bs-target="#ApprovarModel" data-bs-toggle="modal" onClick={() => {handCheck(datos.TR, 1)}}>Edit</button></td>
+                              <td className="badge rounded-pill text-white fs-8 mt-2" style={{"backgroundColor": bcolor(datos.estado)}}>{datos.estado}</td>
+                          </tr>
+                              )}
+                          </tbody>
+                  </table>
+                  <div className="modal fade" id="ApprovarModel" aria-hidden="true" aria-labelledby="ApprovarModelLabel">
+                      <div className="modal-dialog modal-dialog-centered">
+                          <div className="modal-content">
+                              <div className="modal-header bg-dark bg-gradient">
+                                  <h1 className="modal-title fs-5 text-white" id="ApprovarModelLabel">Registro: {dataid.TR}</h1>
+                                  <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                              </div>
+                              <div className="modal-body">
+                              <form className="needs-validation">
+                              <div className="row g-4">
+                              <div className="row mt-3">
+                                  <label className="form-label">Nombre y Apellido</label>
+                                  <input type="text" className="form-control" name="NombreApellido" required onChange={checkData} value={dataid.NombreApellido}></input>
+                              </div>
+                              <div className="row mt-3">
+                                  <label className="form-label">Telefono</label>
+                                  <input type="text" className="form-control" name="Numerotelefono" required onChange={checkData} value={dataid.Numerotelefono}></input>
+                              </div>
+                              </div>
+                              <div className="row g-4 mt-2">
+                              <div className="row mt-3">
+                                  <select className="form-select form-select-sm" name="Departamento" required onChange={checkData} value={dataid.Departamento}>
+                                      <option defaultValue={dataid.Departamento != " " ? dataid.Departamento : "Departamento"}>{dataid.Departamento != " " ? `${dataid.Departamento}` : "Departamento"}</option>
+                                      <option value="Activos Fijos, Control y Gestion">Activos Fijos, Control y Gestión</option>
+                                      <option value="Administracion y Finanzas">Administración y Finanzas</option>
+                                      <option value="Almacen">Almacen</option>
+                                      <option value="Comercialización">Comercialización</option>
+                                      <option value="Facilidades y Servicios Generales">Facilidades y Servicios Generales</option>
+                                      <option value="Gerencia General">Gerencia General</option>
+                                      <option value="Gestion de Talento Humano">Gestion de Talento Humano</option>
+                                      <option value="Hot Oiler">Hot Oiler</option>
+                                      <option value="HSE">HSE</option>
+                                      <option value="IT">IT</option>
+                                      <option value="Junta Directiva">Junta Directiva</option>
+                                      <option value="Legal">Legal</option>
+                                      <option value="Logistica">Logistica</option>
+                                      <option value="Mantenimiento">Mantenimiento</option>
+                                      <option value="Medios e imagen corporativa">Medios e imagen corporativa</option>
+                                      <option value="Operaciones">Operaciones</option>
+                                      <option value="Operaciones (Coiled Tubing)">Operaciones (Coiled Tubing)</option>
+                                      <option value="Operaciones (Guaya Electrica)">Operaciones (Guaya Electrica)</option>
+                                      <option value="Operaciones (Guaya Fina)">Operaciones (Guaya Fina)</option>
+                                      <option value="Operaciones (Well Testing)">Operaciones (Well Testing)</option>
+                                      <option value="Procura">Procura</option>
+                                      <option value="Proyectos - Planificacion - Estimacion de costos">Proyectos - Planificación - Estimación de costos</option>
+                                      <option value="Riesgos">Riesgos</option>
+                                      <option value="Tesoreria">Tesoreria</option>
+                                      <option value="UnixfyOne E&S">UnixfyOne E&S</option>
+                                      <option value="Ventas">Ventas</option>
+                                      <option value="Yacimientos">Yacimientos</option>
+                                  </select>
+                              </div>
+                              <div className="row mt-3">
+                                  <select className="form-select form-select-sm" name="TipoSolicitud" required onChange={checkData} value={dataid.TipoSolicitud}>
+                                      <option value= " ">Tipo de Solicitud</option>
+                                      <option value="Traslado de Personal">Traslado de Personal</option>
+                                      <option value="Asignación Provicional de Vehiculo">Asignación Provicional de Vehiculo</option>
+                                      <option value="Vehiculo On Call (Taxi)">Vehiculo On Call (Taxi)</option>
+                                      <option value="Traslado de Material">Traslado de Material</option>
+                                      <option value="Solicitud de Vehiculo Pesado (Chuto)">Solicitud de Vehiculo Pesado (Chuto)</option>
+                                      <option value="Gerencia General">Servicio de Vans</option>
+                                  </select>
+                              </div>
+                              <div className="row mt-3">
+                                  <select className="form-select form-select-sm" name="TipoServicio" required onChange={checkData} value={dataid.TipoServicio}>
+                                      <option value= " ">Tipo de Servicio</option>
+                                      <option value="Urbano">Urbano</option>
+                                      <option value="Extra - Urbano">Extra - Urbano</option>
+                                      <option value="Pozo">Pozo</option>
+                                  </select>
+                              </div>
+                              <div className="row mt-3">
+                              <label className="form-label">Ruta del servicio (Desde)</label>
+                              <input type="text" className="form-control" name="desde" required onChange={checkData} value={dataid.desde}></input>
+                              </div>
+                              <div className="row mt-3">
+                              <label className="form-label">Ruta del servicio (Hasta)</label>
+                              <input className="form-control" name="hasta" required onChange={checkData} value={dataid.hasta}></input>
+                              </div>
+                              <div className="row mt-2">
+                              <div className="col-6">
+                                  <label className="form-label">Fecha del Servicio</label>
+                                  <input type="date" className="form-control" name="FechaServicio" required onChange={checkData} value={dayjs(dataid.FechaServicio).format("YYYY-MM-DD")}></input>
+                              </div>
+                              <div className="col-6">
+                              <label className="form-label">Hora del Servicio <span className="fw-bold">{dayjs(dataid.Horarequerida).format("HH:mm")}</span></label>
+                              <input type="time" className="form-control" name="Horarequerida" required onChange={checkData} defaultValue={dayjs(dataid.Horarequerida).format("HH:mm")}></input>
+                              </div>
+                              </div>
+                          </div>
+                          <div className="row g-4 mt-2 border-start border-primary bg-light bg-gradient">
+                          <div className="col-4">
+                                  <select className="form-select form-select-sm" name="estado" required onChange={checkData}>
+                                      <option defaultValue={dataid.estado}>{dataid.estado}</option>
+                                      <option value="En Progreso">En Progreso</option>
+                                      <option value="Completado">Completado</option>
+                                      <option value="Cancelado">Cancelado</option>
+                                  </select>
+                              </div>
+
+                              <div className="row g-2">
+                              <div className="col">
+                                  <select className="form-select form-select-sm" name="tipoServicio" required onChange={checkData}>
+                                          <option value=" ">Seleccione Servicio</option>
+                                          <option value="Propio">Propio</option>
+                                          <option value="Tercero">Tercero</option>
+                                  </select>
+                              </div>
+                              <div className="col">
+                                  <select className="form-select form-select-sm" name="vehiculo" onChange={checkData} hidden={hid1} value={dataid.vehiculo}>
+                                  { recurso.map((data) =>  (
+                                      <option value={data.vpropio} key={data.idvpropio}>{data.vpropio}</option>
+                                      ))}
+                                  </select>
+                                  <select className="form-select form-select-sm" name="vehiculo" onChange={checkData} hidden={hid2}>
+                                      <option>Seleccione Vehiculo</option>
+                                      <option value="Tecero">Tecero</option>
+                                      </select>
+                              </div>
+                              </div>
+                          </div>
+                              </form>
+                              </div>
+                              <div className="modal-footer">
+                                  <button type="button" className="btn btn-primary" data-bs-dismiss="modal" onClick={() => {updateData()}}>Salvar</button>
+                              </div>
+                              </div>
+                          </div>
+                  </div>
+               </div>
+
+               <div className="container-sm rounded shadow" style={{"marginTop": '2rem'}}>
+                  <div className="d-flex justify-content-evenly p-2">
+                    <span>Buscar TR: <input type="text" name="sidtr" className="form-control" disabled={trfechaview} onChange={search}></input></span>
+                    <span>Buscar Por Email Creado: <input type="email" name="sfecha" style={{"width": '20rem'}} className="form-control" disabled={trview} onChange={search}></input></span>
+                    <button className="btn bg-primary text-white" onClick={revisarOtros}>Buscar</button>
+                  </div>
+              </div>
+              <div className="container-sm rounded shadow" style={{"marginTop": '2rem'}} hidden={viewotr}>
+              <div>
+                  <h2 className="p-2 bg-primary-subtle bg-opacity-10 border border-danger border-start-0 rounded-end fst-italic">Tickes en Estado: Completado - Cancelado</h2>
+              </div>
+              <div>
+                      <h1 hidden={!view}>No Posee Acceso</h1>
+                  </div>
+                  <table className="table table-hover" hidden={view}>
+                      <thead className="bg-secondary text-white text-center">
+                      <tr>
+                          <th className="p-2">TR</th>
+                          <th className="p-2">Fecha Creado</th>
+                          <th className="p-2">Fecha Servicio</th>
+                          <th className="p-2">Hora Servicio</th>
+                          <th className="p-2">Departamento</th>
+                          <th className="p-2">Nombre Solicitante</th>
+                          <th className="p-2">Tipo de Solicitud</th>
+                          <th className="p-2">Tipo de Servicio</th>
+                          <th className="p-2">Vehiculo</th>
+                          <th className="p-2">Editar</th>
+                          <th className="p-2">Estado</th>
+                      </tr>
+                      </thead>
+                          <tbody>
+                              {dataOtros.map((datos) =>
+                              <tr key={datos.TR}>
+                              <td className="text-center" >{datos.TR}</td>
+                              <td className="text-center">{dayjs(datos.fechaCreado).format("DD/MM/YYYY")}</td>
+                              <td className="text-center">{dayjs(datos.FechaServicio).format("DD/MM/YYYY")}</td>
+                              <td className="text-center">{dayjs(datos.Horarequerida).format("HH:mm")}</td>
+                              <td>{datos.Departamento}</td>
+                              <td>{datos.NombreApellido}</td>
+                              <td>{datos.TipoSolicitud}</td>
+                              <td>{datos.TipoServicio}</td>
+                              <td>{datos.vehiculo}</td>
+                              <td><button className="btn bg-primary text-white" data-bs-target="#ApprovarModel" data-bs-toggle="modal" onClick={() => {handCheck(datos.TR, 2)}}>Edit</button></td>
+                              <td className="badge rounded-pill text-white fs-8 mt-2" style={{"backgroundColor": bcolor(datos.estado)}}>{datos.estado}</td>
+                          </tr>
+                              )}
+                          </tbody>
+                  </table>
+                  <nav aria-label="Page navigation example">
+                      <ul className="pagination">
+                          <li className="page-item">
+                          <a className="page-link" href="#" aria-label="Previous">
+                              <span aria-hidden="true">&laquo;</span>
+                          </a>
+                          </li>
+                          {pageNumber.map(noPage =>
+                              <li className="page-item" key={noPage}>
+                              <a className="page-link" href="#">
+                                      {noPage}
+                              </a>
+                          </li>
+                          )}
+
+
+                          <li className="page-item">
+                          <a className="page-link" href="#" aria-label="Next">
+                              <span aria-hidden="true">&raquo;</span>
+                          </a>
+                          </li>
+                      </ul>
+                  </nav>
+              </div>
+          </div>
+           )
+        }
+//</script>

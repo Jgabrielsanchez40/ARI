@@ -1,0 +1,137 @@
+//<script type="text/jsx">
+
+let creadoPor;
+var n, id;
+const fechacreado = new Date().toLocaleString() + " ";
+
+function Inicio() {
+    const [dataSource, setdataSource] = useState([])
+    const [sdato, setSdato] = useState(" ")
+
+    useEffect(listar, [])
+
+    async function listar() {
+        await User()
+        await google.script.run.withSuccessHandler(res => {
+            const respuest = JSON.parse(res);
+            let arreglo = [];
+            respuest
+                .sort((a, b) =>  b.fechacreado > a.fechacreado ? 1 : -1)
+                .map(data => {
+                //if(data.creadoPor === creadopor)
+                arreglo.push({...data})
+            })
+            setdataSource(arreglo)
+           }).listarUser();
+    }
+
+    async function User() {
+        await google.script.run.withSuccessHandler(res => {
+          creadoPor = (res)
+        }).perfil();
+     }
+
+    const checkData = (e) => {
+      const { name, value } = e.target;
+     setSdato({...sdato, [name]: value})
+     }
+
+    async function cantRow() {
+      await google.script.run.withSuccessHandler(res => {
+          n = res;
+          id = "ID-" + (Math.round(n) + 1);
+          save()
+      }).cantRows()
+    }
+
+    async function save() {
+      notificacionGuardando("Guardando Registro");
+        await google.script.run.withSuccessHandler(resp => {
+          listar()
+          notificacionTareaTerminada(resp.titulo, resp.descripcion);
+        }).save(JSON.stringify({ id, fechacreado, creadoPor, ...sdato} ));
+      }
+
+      const bcolor = (kfalta) => {
+        if(kfalta === "Creado") return ('#FFBB5C')
+         else if(kfalta === "Completado") return ('#339966')
+         else if(kfalta === "Registrado") return ('#1a8cff')
+       }
+
+       return (
+        <div className="container-sm rounded shadow" style={{"marginTop": '2rem'}}>
+        <div>
+          <h2 className="p-2 bg-primary-subtle bg-opacity-10 fst-italic">Registro ARI</h2>
+        </div>
+        <div className="container-sm rounded shadow-sm" style={{"marginTop": '2rem'}}>
+          <h4>Reportes Creados y Estado: {creadoPor}</h4>
+           <div>
+            <div className="modal fade" id="CrearModel" aria-hidden="true" aria-labelledby="CrearModelLabel">
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content">
+                    <div className="modal-header bg-dark bg-gradient">
+                        <h1 className="modal-title fs-5 text-white" id="CrearModelLabel">Por Favor Ingrese Los Datos</h1>
+                        <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div className="modal-body">
+                      <form className="needs-validation">
+                        <div className="row g-4">
+                          <div className="row mt-3">
+                            <label className="form-label">Ingrese su CI: "11111111"</label>
+                            <input type="text" className="form-control" name="ci" required onChange={checkData}></input>
+                          </div>
+                          <div className="row mt-3">
+                            <label className="form-label">Nombres y Apellidos</label>
+                            <input type="text" className="form-control" name="nombre" required onChange={checkData}></input>
+                          </div>
+                        </div>
+                        <div className="modal-footer">
+                        <button type="button" className="btn btn-primary" data-bs-dismiss="modal" onClick={() => cantRow()}>Salvar</button>
+                    </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+            </div>
+            <div className='container'>
+              <div className='row'>
+                <button className="btn btn-primary" data-bs-target="#CrearModel" data-bs-toggle="modal">Cargar</button>
+              </div>
+              <div className='row'>
+                <div className="col">Creado</div>
+                <div className="col">Actualizado</div>
+                <div className="col">Procesado</div>
+              </div>
+            </div>
+          </div>
+          <table className="table table-striped table-hover">
+            <thead className="bg-secondary text-white text-center">
+              <tr>
+                <th>Fecha Creado</th>
+                <th>Empresa</th>
+                <th>CI</th>
+                <th>Nombres y Apellidos</th>
+                <th>Archivo ARI</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dataSource.map((datos) =>
+               <tr key={datos.fechacreado}>
+               <td className="text-center">{dayjs(datos.fechacreado).format("DD/MM/YYYY")}</td>
+               <td>{datos.empresa}</td>
+               <td className="text-center" >{datos.ci}</td>
+               <td>{datos.nombre}</td>
+               <td><a href={datos.url} target="_blank">ARI</a></td>
+               <td className="badge rounded-pill text-white fs-8 mt-2" style={{"backgroundColor": bcolor(datos.estado)}}>{datos.estado}</td>
+             </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div><hr/></div>
+      </div>
+       )
+
+}
+ //</script>
