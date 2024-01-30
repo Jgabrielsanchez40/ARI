@@ -4,6 +4,8 @@ function env_(){
         SH_REGISTRO_DATA: "data",
         SH_REGISTRO_ADMIN: "admin",
         SH_REGISTRO_LISTAEMP: "listaemp",
+        SH_REGISTRO_EMPCOTIZA: "empCotiza",
+        SH_REGISTRO_EMPRESA: "empresa",
         ID_ARI: "13hN9ENV0WXo-FAdtVHtLROIt-EWOcl_dJHwoWLuwntM",
     };
 }

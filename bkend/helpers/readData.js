@@ -18,6 +18,46 @@ function _read(sheet, id) {
     return resultado;
 }
 
+function readCreatedBy(sheet, creadoPor) {
+    const data = sheet.getDataRange().getValues();
+    const header = data.shift();
+    //Buscar tod
+    const resultado = data.map((row, indx) => {
+        const reduced = header.reduce((accumulator, currentValue, currentIndex) => {
+            accumulator[currentValue] = row[currentIndex];
+            return accumulator;
+        }, {});
+
+        reduced.row = indx + 2;
+        return reduced;
+    });
+    //filtrar si pasa un ID
+    if (creadoPor) {
+        return resultado.filter((dato) => dato.creadoPor === creadoPor)
+    }
+    return resultado;
+}
+
+function readCI(sheet, ci) {
+    const data = sheet.getDataRange().getValues();
+    const header = data.shift();
+    //Buscar tod
+    const resultado = data.map((row, indx) => {
+        const reduced = header.reduce((accumulator, currentValue, currentIndex) => {
+            accumulator[currentValue] = row[currentIndex];
+            return accumulator;
+        }, {});
+
+        reduced.row = indx + 2;
+        return reduced;
+    });
+    //filtrar si pasa un ID
+    if (ci) {
+        return resultado.filter((dato) => dato.ci === ci)
+    }
+    return resultado;
+}
+
 function readEstado(sheet, estado) {
     const data = sheet.getDataRange().getValues();
     const header = data.shift();

@@ -1,35 +1,64 @@
 //<script type="text/jsx">
 
-let creadoPor;
-var n, id;
+var n, id, creadoPor;
+var nombre, empresa, screado;
 const fechacreado = new Date().toLocaleString() + " ";
 
 function Inicio() {
     const [dataSource, setdataSource] = useState([])
-    const [sdato, setSdato] = useState(" ")
+    const [sdato, setSdato] = useState("");
+    const [hidedata, setHidedata] = useState(true)
+    const [msn, setMsn] = useState("")
+    const [hidemsn, setHidemsn] = useState(true)
 
-    useEffect(listar, [])
+    useEffect(User, [])
+    
+    async function User() {
+      await google.script.run.withSuccessHandler(res => {
+        creadoPor = (res)
+        listar()
+      }).perfil();
+   }
 
     async function listar() {
-        await User()
-        await google.script.run.withSuccessHandler(res => {
-            const respuest = JSON.parse(res);
-            let arreglo = [];
-            respuest
-                .sort((a, b) =>  b.fechacreado > a.fechacreado ? 1 : -1)
-                .map(data => {
-                //if(data.creadoPor === creadopor)
-                arreglo.push({...data})
-            })
-            setdataSource(arreglo)
-           }).listarUser();
+      await google.script.run.withSuccessHandler(res => {
+        const respuest = JSON.parse(res);
+        let arreglo = [];
+        respuest
+          .sort((a, b) =>  b.fechacreado > a.fechacreado ? 1 : -1)
+          .map(data => {
+           arreglo.push({...data})
+        })
+        setdataSource(arreglo)
+      }).listarUser(creadoPor);
     }
 
-    async function User() {
-        await google.script.run.withSuccessHandler(res => {
-          creadoPor = (res)
-        }).perfil();
-     }
+    const searchci = async (ci) => {
+      const cic = JSON.parse(ci)
+       await google.script.run.withSuccessHandler(res => {
+        const resp = JSON.parse(res)
+        if(resp.length > 0) {
+           resp.map(data => {
+            if(data.creado === "SI") {
+              setHidemsn(false)
+              setMsn("# CI ya Esta Registrado")
+            }
+            else {
+              nombre = data.nombre
+              empresa = data.empresa
+              screado = data.creado
+              setHidemsn(true)
+              setMsn(" ")
+              setHidedata(false)
+            }
+          })
+        }
+        else if(resp.length <= 0) {
+          setHidemsn(false)
+          setMsn("# CI no Existe, Contacte a GTH")
+        }
+      }).searcCI(cic)
+   }
 
     const checkData = (e) => {
       const { name, value } = e.target;
@@ -47,15 +76,25 @@ function Inicio() {
     async function save() {
       notificacionGuardando("Guardando Registro");
         await google.script.run.withSuccessHandler(resp => {
-          listar()
-          notificacionTareaTerminada(resp.titulo, resp.descripcion);
-        }).save(JSON.stringify({ id, fechacreado, creadoPor, ...sdato} ));
+        notificacionTareaTerminada(resp.titulo, resp.descripcion);
+        clean()
+        }).save(JSON.stringify({ id, fechacreado, creadoPor, nombre, empresa, ...sdato} ));
+        listar()
       }
+
+    const clean = () => {
+      empresa = " ";
+      nombre = " ",
+      screado = " ",
+      setSdato(" ")
+      setHidedata(true)
+      setHidemsn(true)
+    }
 
       const bcolor = (kfalta) => {
         if(kfalta === "Creado") return ('#FFBB5C')
          else if(kfalta === "Completado") return ('#339966')
-         else if(kfalta === "Registrado") return ('#1a8cff')
+         else if(kfalta === "Actualizado") return ('#1a8cff')
        }
 
        return (
@@ -71,53 +110,67 @@ function Inicio() {
                     <div className="modal-content">
                     <div className="modal-header bg-dark bg-gradient">
                         <h1 className="modal-title fs-5 text-white" id="CrearModelLabel">Por Favor Ingrese Los Datos</h1>
-                        <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" className="btn modal-title fs-5 text-white" data-bs-dismiss="modal" aria-label="Close" onClick={() => clean()}>X</button>
                     </div>
                     <div className="modal-body">
                       <form className="needs-validation">
-                        <div className="row g-4">
-                          <div className="row mt-3">
-                            <label className="form-label">Ingrese su CI: "11111111"</label>
-                            <input type="text" className="form-control" name="ci" required onChange={checkData}></input>
-                          </div>
-                          <div className="row mt-3">
-                            <label className="form-label">Nombres y Apellidos</label>
-                            <input type="text" className="form-control" name="nombre" required onChange={checkData}></input>
-                          </div>
+                        <div className="row mt-3">
+                          <label className="form-label">Ingrese su CI: "11111111"</label>
+                          <input type="text" className="form-control" name="ci" required onChange={checkData}></input>
+                          <label className="text-danger" hidden={hidemsn ? true : false}>{msn}</label>
                         </div>
+                        <div className="row mt-3" hidden={hidedata ? true : false}>
+                          <label className="form-label">Nombre Completo</label>
+                          <p className="form-control">{nombre}</p>
+                        </div>
+                        <div className="row mt-3" hidden={hidedata ? true : false}>
+                          <label className="form-label">Empresa Cotiza</label>
+                          <p className="form-control">{empresa}</p>
+                        </div>
+                   
                         <div className="modal-footer">
-                        <button type="button" className="btn btn-primary" data-bs-dismiss="modal" onClick={() => cantRow()}>Salvar</button>
+                        <button type="button" className="btn btn-secondary" onClick={() => searchci(sdato.ci)}>Buscar</button>
+                        <button type="button" className="btn btn-primary" data-bs-dismiss="modal" disabled={hidedata ? true : false} onClick={() => cantRow()}>Salvar</button>
                     </div>
                       </form>
                     </div>
                   </div>
                 </div>
             </div>
-            <div className='container'>
-              <div className='row'>
-                <button className="btn btn-primary" data-bs-target="#CrearModel" data-bs-toggle="modal">Cargar</button>
-              </div>
-              <div className='row'>
-                <div className="col">Creado</div>
-                <div className="col">Actualizado</div>
-                <div className="col">Procesado</div>
+            <div className='d-flex justify-content-md-between bg-secondary-subtle rounded p-2'>
+              <button className="btn btn-primary btn-sm" data-bs-target="#CrearModel" data-bs-toggle="modal">Cargar</button>
+              <div className="d-flex justify-content-md-end">
+                <div className="row-md p-2">
+                  <p className="badge rounded-pill text-white" style={{"backgroundColor": '#FFBB5C', "width": "4.5rem", "height": "1.2rem"}}>Creado</p>
+                  <span className="text-underline-warning">Una vez Iniciado el Proceso</span>
+                </div>
+                <div className="row-md p-2">
+                <p className="badge rounded-pill text-white" style={{"backgroundColor": '#1a8cff'}}>Actualizado</p>
+                <span className="mr-2 link-underline-primary">ARI Actualizado</span>
+                </div>
+                <div className="row-md p-2">
+                  <p className="badge rounded-pill text-white" style={{"backgroundColor": '#339966'}}>Completado</p>
+                  <span className="mr-2 underline-success">GTH Reviso y Completo Proceso</span>
+                </div>
               </div>
             </div>
           </div>
-          <table className="table table-striped table-hover">
+          <table className="table table-responsive table-striped table-hover">
             <thead className="bg-secondary text-white text-center">
               <tr>
+                <th>ID</th>
                 <th>Fecha Creado</th>
-                <th>Empresa</th>
+                <th>Empresa Cótiza</th>
                 <th>CI</th>
-                <th>Nombres y Apellidos</th>
+                <th>Nombre Completo</th>
                 <th>Archivo ARI</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
               {dataSource.map((datos) =>
-               <tr key={datos.fechacreado}>
+               <tr key={datos.id}>
+               <td>{datos.id}</td>
                <td className="text-center">{dayjs(datos.fechacreado).format("DD/MM/YYYY")}</td>
                <td>{datos.empresa}</td>
                <td className="text-center" >{datos.ci}</td>
